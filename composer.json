@@ -1,0 +1,33 @@
+{
+  "name": "objective-php/web-socket-package",
+  "description": "Hoa web socket integration for Objective PHP",
+  "type": "library",
+  "keywords": [
+    "hoa",
+    "web-socket",
+    "objective php"
+  ],
+  "homepage": "https://github.com/objective-php/web-socket-package",
+  "license": "GPL-3.0",
+  "authors": [
+    {
+      "name": "Gauthier 'Rusty' Delamarre",
+      "email": "gauthier@objective-php.org",
+      "role": "lead"
+    }
+  ],
+  "require": {
+    "php": ">=7.0",
+    "objective-php/cli": "^1.1",
+    "hoa/websocket": "^3.17"
+  },
+  "require-dev": {
+    "codeception/codeception": "^2.0",
+    "objective-php/application": "^1.0.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "ObjectivePHP\\Package\\WebSocket\\": "src/"
+    }
+  }
+}
