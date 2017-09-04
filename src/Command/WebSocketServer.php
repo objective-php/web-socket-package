@@ -173,13 +173,13 @@ class WebSocketServer extends AbstractCliAction
             $this->callbackHandlers[] = $callbackHandler;
         }
 
-        $server->on('message', function (Bucket $bucket) use($server) {
+
+        $mainHandler = function (Bucket $bucket) use($server) {
 
             try {
+
+
                 $data = $bucket->getData();
-
-                $bucket->getSource()->send($data['message']);
-
                 $rpc = json_decode($data['message'], true);
 
                 if (!is_array($rpc) || !isset($rpc['event']) || !isset($rpc['params'])) {
@@ -197,7 +197,7 @@ class WebSocketServer extends AbstractCliAction
                 foreach($this->callbackHandlers as $handler)
                 {
                     if(method_exists($handler, $method)) {
-                        $handler->$method($params, $server);
+                        $handler->$method($params, $bucket, $server);
                         $this->debug('ran ' . get_class($handler) . '->'  . $method . '()');
                     }
                 }
@@ -208,7 +208,12 @@ class WebSocketServer extends AbstractCliAction
             }
 
             return;
-        });
+        };
+
+        $server->on('message', $mainHandler);
+        $server->on('open', [$this, 'onOpen']);
+        $server->on('close',[$this, 'onClose']);
+
 
 
         try {
@@ -251,5 +256,15 @@ class WebSocketServer extends AbstractCliAction
 
         $this->debug($message);
 
+    }
+
+    public function onOpen()
+    {
+        $this->debug('new incoming connection');
+    }
+
+    public function onClose()
+    {
+        $this->debug('a connection stopped');
     }
 }
