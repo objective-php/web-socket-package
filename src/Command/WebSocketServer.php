@@ -22,6 +22,10 @@ use ObjectivePHP\Package\WebSocket\Exception\MalformedMessageException;
 use ObjectivePHP\Package\WebSocket\Exception\WebSocketServerException;
 use ObjectivePHP\Primitives\String\Camel;
 
+/**
+ * Class WebSocketServer
+ * @package ObjectivePHP\Package\WebSocket\Command
+ */
 class WebSocketServer extends AbstractCliAction
 {
     protected $defaultPidFile = '/tmp/ws-server.pid';
@@ -146,8 +150,8 @@ class WebSocketServer extends AbstractCliAction
     
     protected function startServer()
     {
-        
         $server = new Server(new \Hoa\Socket\Server('tcp://127.0.0.1:8889'));
+        $wsServer = new \ObjectivePHP\Package\WebSocket\Socket\Server($server);
 
         // add server itself as callback handler
         $this->callbackHandlers[] = $this;
@@ -174,7 +178,7 @@ class WebSocketServer extends AbstractCliAction
         }
 
 
-        $mainHandler = function (Bucket $bucket) use($server) {
+        $mainHandler = function (Bucket $bucket) use($wsServer) {
 
             try {
 
@@ -197,7 +201,7 @@ class WebSocketServer extends AbstractCliAction
                 foreach($this->callbackHandlers as $handler)
                 {
                     if(method_exists($handler, $method)) {
-                        $handler->$method($params, $bucket, $server);
+                        $handler->$method($params, $wsServer);
                         $this->debug('ran ' . get_class($handler) . '->'  . $method . '()');
                     }
                 }
@@ -255,7 +259,6 @@ class WebSocketServer extends AbstractCliAction
         }
 
         $this->debug($message);
-
     }
 
     public function onOpen()
