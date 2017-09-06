@@ -14,6 +14,6 @@ use ObjectivePHP\Package\WebSocketServer\Config\WebSocketServerConfig;
 interface WebSocketServerCommandInterface
 {
 
-    public function setConfig(WebSocketServerConfig $config);
+    public function __construct(WebSocketServerConfig $config);
 
 }

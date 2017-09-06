@@ -4,24 +4,34 @@ namespace ObjectivePHP\Package\WebSocketServer\Config;
 
 use ObjectivePHP\Config\Exception;
 use ObjectivePHP\Config\SingleDirective;
+use ObjectivePHP\Config\StackedDirective;
+use ObjectivePHP\Package\WebSocketServer\Command\WebSocketServer;
+use ObjectivePHP\Package\WebSocketServer\Command\WebSocketServerCommandInterface;
 
-class WebSocketServerConfig extends SingleDirective
+class WebSocketServerConfig extends StackedDirective
 {
 
     protected $bindingAddress;
 
     protected $port;
 
-    protected $command;
+    protected $action;
 
     protected $protocol;
 
-    public function __construct($port = 8889, $bindingAddress = '127.0.0.1', $protocol = 'ws')
+    protected $listeners = [];
+
+    protected $logFile;
+
+    public function __construct($listeners = [], $port = 8889, $bindingAddress = '127.0.0.1', $protocol = 'ws', $action = WebSocketServer::class, $logFile = null)
     {
+        $this->setAction($action);
         $this->setPort($port);
         $this->setBindingAddress($bindingAddress);
         $this->setProtocol($protocol);
+        $this->setListeners($listeners);
     }
+
 
     /**
      * @return mixed
@@ -81,6 +91,56 @@ class WebSocketServerConfig extends SingleDirective
         $this->port = $port;
 
         return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getAction()
+    {
+        return $this->action;
+    }
+
+    /**
+     * @param mixed $action
+     */
+    public function setAction($action)
+    {
+        $this->action = $action;
+
+        return $this;
+    }
+
+    /**
+     * @return array
+     */
+    public function getListeners(): array
+    {
+        return $this->listeners;
+    }
+
+    /**
+     * @param array $listeners
+     */
+    public function setListeners(array $listeners)
+    {
+        $this->listeners = $listeners;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getLogFile()
+    {
+        return $this->logFile;
+    }
+
+    /**
+     * @param mixed $logFile
+     */
+    public function setLogFile($logFile)
+    {
+        $this->logFile = $logFile;
     }
 
 }
