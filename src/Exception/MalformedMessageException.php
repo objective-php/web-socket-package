@@ -1,6 +1,6 @@
 <?php
 
-namespace ObjectivePHP\Package\WebSocket\Exception;
+namespace ObjectivePHP\Package\WebSocketServer\Exception;
 
 class MalformedMessageException extends WebSocketServerException
 {

@@ -6,7 +6,7 @@
  * Time: 14:40
  */
 
-namespace ObjectivePHP\Package\WebSocket\Exception;
+namespace ObjectivePHP\Package\WebSocketServer\Exception;
 
 
 class InvalidListenerException extends WebSocketServerException
