@@ -17,6 +17,7 @@ use ObjectivePHP\Cli\Action\AbstractCliAction;
 use ObjectivePHP\Cli\Action\Parameter\Argument;
 use ObjectivePHP\Cli\Action\Parameter\Param;
 use ObjectivePHP\Cli\Action\Parameter\Toggle;
+use ObjectivePHP\Package\WebSocket\WsServer;
 use ObjectivePHP\Package\WebSocketServer\Exception\InvalidListenerException;
 use ObjectivePHP\Package\WebSocketServer\Exception\MalformedMessageException;
 use ObjectivePHP\Package\WebSocketServer\Exception\WebSocketServerException;
@@ -161,7 +162,7 @@ class WebSocketServer extends AbstractCliAction
     protected function startServer()
     {
         $server = new Server(new \Hoa\Socket\Server('tcp://127.0.0.1:8889'));
-        $wsServer = new \ObjectivePHP\Package\WebSocket\Socket\Server($server);
+        $wsServer = new WsServer($server);
 
         // add server itself as callback handler
         $this->callbackHandlers[] = $this;

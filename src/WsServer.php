@@ -1,14 +1,14 @@
 <?php
 
-namespace ObjectivePHP\Package\WebSocket\Socket;
+namespace ObjectivePHP\Package\WebSocket;
 
 use Hoa\Websocket\Server as HoaServer;
 
 /**
  * Class Server
- * @package ObjectivePHP\Package\WebSocket\Socket
+ * @package ObjectivePHP\Package\WebSocket
  */
-class Server implements ServerInterface
+class WsServer implements ServerWrapper
 {
     /**
      * @var
@@ -19,7 +19,7 @@ class Server implements ServerInterface
      * Server constructor.
      * @param HoaServer $server
      */
-    public function __construct(HoaServer $server)
+    public function __construct(HoaServer $server = null)
     {
         $this->setServer($server);
     }
@@ -90,13 +90,12 @@ class Server implements ServerInterface
      */
     protected function broadcastFiltering(...$filters)
     {
+        $bool = true;
         $filters = $filters[0];
         foreach ($filters as $filter) {
-            $bool = $filter->call($this);
-            if (!$bool) {
-                return false;
-            }
+            $bool = $bool && $filter->call($this);
         }
-        return true;
+
+        return $bool;
     }
 }

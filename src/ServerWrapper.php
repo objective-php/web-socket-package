@@ -1,12 +1,12 @@
 <?php
 
-namespace ObjectivePHP\Package\WebSocket\Socket;
+namespace ObjectivePHP\Package\WebSocket;
 
 /**
  * Interface Server
- * @package ObjectivePHP\Package\WebSocket\Socket
+ * @package ObjectivePHP\Package\WebSocket
  */
-interface ServerInterface
+interface ServerWrapper
 {
     /**
      * @param string $event
