@@ -6,10 +6,10 @@
  * Time: 13:59
  */
 
-namespace ObjectivePHP\Package\WebSocket\Exception;
+namespace ObjectivePHP\Package\WebSocketServer\Exception;
 
 
-class WebSocketServerException extends WebSocketException
+class WebSocketServerException extends \Exception
 {
 
 }

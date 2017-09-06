@@ -1,5 +1,5 @@
 {
-  "name": "objective-php/web-socket-package",
+  "name": "objective-php/ws-server-package",
   "description": "Hoa web socket integration for Objective PHP",
   "type": "library",
   "keywords": [
@@ -7,7 +7,7 @@
     "web-socket",
     "objective php"
   ],
-  "homepage": "https://github.com/objective-php/web-socket-package",
+  "homepage": "https://github.com/objective-php/ws-server-package",
   "license": "GPL-3.0",
   "authors": [
     {
@@ -19,7 +19,8 @@
   "require": {
     "php": ">=7.0",
     "objective-php/cli": "^1.1",
-    "hoa/websocket": "^3.17"
+    "hoa/websocket": "^3.17",
+    "zendframework/zend-log": "^2.9"
   },
   "require-dev": {
     "codeception/codeception": "^2.0",
@@ -27,7 +28,7 @@
   },
   "autoload": {
     "psr-4": {
-      "ObjectivePHP\\Package\\WebSocket\\": "src/"
+      "ObjectivePHP\\Package\\WebSocketServer\\": "src/"
     }
   }
 }

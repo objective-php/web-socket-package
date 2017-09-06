@@ -6,7 +6,7 @@
  * Time: 15:05
  */
 
-namespace ObjectivePHP\Package\WebSocket\Command;
+namespace ObjectivePHP\Package\WebSocketServer\Command;
 
 
 use Hoa\Event\Bucket;
@@ -17,21 +17,24 @@ use ObjectivePHP\Cli\Action\AbstractCliAction;
 use ObjectivePHP\Cli\Action\Parameter\Argument;
 use ObjectivePHP\Cli\Action\Parameter\Param;
 use ObjectivePHP\Cli\Action\Parameter\Toggle;
-use ObjectivePHP\Package\WebSocket\Exception\InvalidListenerException;
-use ObjectivePHP\Package\WebSocket\Exception\MalformedMessageException;
-use ObjectivePHP\Package\WebSocket\Exception\WebSocketServerException;
+use ObjectivePHP\Package\WebSocketServer\Exception\InvalidListenerException;
+use ObjectivePHP\Package\WebSocketServer\Exception\MalformedMessageException;
+use ObjectivePHP\Package\WebSocketServer\Exception\WebSocketServerException;
 use ObjectivePHP\Primitives\String\Camel;
+use Psr\Log\LoggerInterface;
 
 class WebSocketServer extends AbstractCliAction
 {
     protected $defaultPidFile = '/tmp/ws-server.pid';
-    
+
     protected $backgroundExecution = false;
 
     protected $listeners = [];
 
     protected $callbackHandlers = [];
-    
+
+    protected $logger;
+
     /**
      * WebSocketServer constructor.
      */
@@ -40,17 +43,24 @@ class WebSocketServer extends AbstractCliAction
         $this->setCommand('ws-server');
         $this->allowUnexpectedParameters();
         $this->setDescription('Start a web socket server');
-        $this->expects(new Toggle(['v' => 'verbose'], 'Verbosely reports server activity (foreground mode only)'));
+        $this->expects(new Toggle(['d' => 'debug'], 'Log debug informations'));
         $this->expects(new Toggle(['f' => 'force'], 'Force starting the server, ignoring existing PID file'));
         $this->expects((new Param('pid-file', 'file where to store daemon PID')));
         $this->expects(new Argument('operation',
-            'In daemon mode, tells what operation to apply on daemon (start|stop|restart|run)'));
+            'Server operation (start|stop|restart|run*)'));
 
         // register listener classes
         $this->listeners = $listeners;
     }
-    
-    
+
+    public function registerListeners(...$listeners)
+    {
+        $this->listeners += $listeners;
+        $this->listeners = array_unique($this->listeners);
+
+        return $this;
+    }
+
     /**
      * @param ApplicationInterface $app
      *
@@ -59,40 +69,40 @@ class WebSocketServer extends AbstractCliAction
     public function run(ApplicationInterface $app)
     {
         $c = new CLImate();
-    
+
         if ($this->getParam('force')) {
             $this->stopDaemon($silent = true);
         }
-        
-            $operation = $this->getParam('operation', 'run');
-            switch($operation) {
-                
-                case 'run':
-                    $c->info('Starting server...');
-                    $this->startServer();
-                    break;
-                
-                case 'stop':
-                    $this->stopDaemon();
-                    $c->info('Server stopped');
-                    exit(0);
-                    
-                case 'start':
-                    $this->startDaemon();
-                    exit(0);
-                    
-                case 'restart':
-                    $c->info('Restarting WS server...');
-                    $this->stopDaemon($silent = true);
-                    $this->startDaemon();
-                    exit(0);
-                    
-                default:
-                    $c->error('Unknown background operation: "' . $operation . '"');
-                    exit(-1);
-            }
+
+        $operation = $this->getParam('operation', 'run');
+        switch($operation) {
+
+            case 'run':
+                $this->log('Starting server...');
+                $this->startServer();
+                break;
+
+            case 'stop':
+                $this->stopDaemon();
+                $this->log('Server stopped');
+                exit(0);
+
+            case 'start':
+                $this->startDaemon();
+                exit(0);
+
+            case 'restart':
+                $this->log('Restarting WS server...');
+                $this->stopDaemon($silent = true);
+                $this->startDaemon();
+                exit(0);
+
+            default:
+                $this->log('Unknown background operation: "' . $operation . '"');
+                exit(-1);
+        }
     }
-    
+
     protected function stopDaemon($silent = false)
     {
         if ($this->checkPidFile()) {
@@ -105,28 +115,28 @@ class WebSocketServer extends AbstractCliAction
             if(!$silent) (new CLImate())->error('The PID file "' . $this->getParam('pid-file') . '" does not exist or is not readable');
         }
     }
-    
+
     protected function checkPidFile()
     {
         return file_exists($this->getPidFile());
     }
-    
+
     protected function startDaemon()
     {
         $force = $this->getParam('force');
         if($this->checkPidFile() && !$force)
         {
             (new CLImate())->error('Cannot start server while PID file (' . $this->getPidFile() . ') exists. Another instance of this server is likely to run with PID ' . $this->getPid() . '.');
-            
+
             if(!posix_getpgid($this->getPid()))
             {
                 (new CLImate())->br();
                 (new CLImate())->comment('The process #' . $this->getPid() . ' does not seem to be still running. You may try to force server start using "-f" flag.');
             }
-            
+
             exit(-1);
         }
-        
+
         $pid = pcntl_fork();
         if ($pid == -1) {
             (new CLImate())->error('An error occurred while trying to launch the server in background');
@@ -136,17 +146,17 @@ class WebSocketServer extends AbstractCliAction
             $this->startServer();
         } else {
             (new CLImate())->info('Spawned daemon with pid ' . $pid);
-            
+
             // store pid in PID file
             file_put_contents($this->getPidFile(), $pid);
             exit(0);
         }
-        
+
     }
-    
+
     protected function startServer()
     {
-        
+
         $server = new Server(new \Hoa\Socket\Server('tcp://127.0.0.1:8889'));
 
         // add server itself as callback handler
@@ -160,7 +170,7 @@ class WebSocketServer extends AbstractCliAction
                 if(class_exists($listener)) {
                     $callbackHandler = new $listener;
                 } else {
-                    throw new InvalidListenerException('The listnener class "' . $listener . '" was not found.');
+                    throw new InvalidListenerException('The listener class "' . $listener . '" was not found.');
                 }
             } elseif(is_object($listener))
             {
@@ -169,6 +179,8 @@ class WebSocketServer extends AbstractCliAction
             else {
                 throw new InvalidListenerException('Valid listeners are class names or object instances. ' . gettype($listener) . ' has been provided');
             }
+
+            $this->getServicesFactory()->injectDependencies($callbackHandler);
 
             $this->callbackHandlers[] = $callbackHandler;
         }
@@ -189,7 +201,7 @@ class WebSocketServer extends AbstractCliAction
                 $event = $rpc['event'];
                 $params = $rpc['params'];
 
-                $this->debug('event "' . $event . '" with params ' . json_encode($params));
+                $this->log('event "' . $event . '" with params ' . json_encode($params));
 
                 // trigger handlers
                 $method = 'on' . Camel::case($event, Camel::UPPER, ['.', '_', '-']);
@@ -198,10 +210,11 @@ class WebSocketServer extends AbstractCliAction
                 {
                     if(method_exists($handler, $method)) {
                         $handler->$method($params, $bucket, $server);
-                        $this->debug('ran ' . get_class($handler) . '->'  . $method . '()');
+                        $this->log('ran ' . get_class($handler) . '->'  . $method . '()');
                     }
                 }
 
+                // TODO throw Exception if no callback matched received event
 
             } catch (\Throwable $e) {
                 $this->issueError($e);
@@ -221,10 +234,7 @@ class WebSocketServer extends AbstractCliAction
         } catch(\Exception $e)
         {
             (new CLImate())->error('Cannot start server. Maybe is another instance already running on same port?' . PHP_EOL . 'Use "-v" to get more information about what was wrong.');
-            if($this->getParam('v'))
-            {
-                (new CLImate())->comment('Exception message: ' . '<white>' . $e->getMessage() . '</white>');
-            }
+            if($this->getParam('debug')) $this->log('Exception message: ' . '<white>' . $e->getMessage() . '</white>');
         }
     }
 
@@ -232,16 +242,18 @@ class WebSocketServer extends AbstractCliAction
     {
         return (int) file_get_contents($this->getPidFile());
     }
-    
+
     protected function getPidFile()
     {
         return $this->getParam('pid-file') ?: $this->defaultPidFile;
     }
 
-    protected function debug($message)
+    protected function log($message)
     {
-        if($this->getParam('v') && !$this->backgroundExecution)
-        {
+        if($this->backgroundExecution) {
+            $logger = $this->getLogger();
+        }
+        else {
             (new CLImate())->info(date('Y-m-d H:i') . ' => <comment>' . $message . '</comment>');
         }
     }
@@ -254,17 +266,34 @@ class WebSocketServer extends AbstractCliAction
             $message = $message->getMessage();
         }
 
-        $this->debug($message);
+        $this->log($message);
 
     }
 
     public function onOpen()
     {
-        $this->debug('new incoming connection');
+        $this->log('new incoming connection');
     }
 
     public function onClose()
     {
-        $this->debug('a connection stopped');
+        $this->log('a connection stopped');
     }
+
+    /**
+     * @return LoggerInterface
+     */
+    public function getLogger()
+    {
+        return $this->logger;
+    }
+
+    /**
+     * @param LoggerInterface $logger
+     */
+    public function setLogger(LoggerInterface $logger)
+    {
+        $this->logger = $logger;
+    }
+
 }
