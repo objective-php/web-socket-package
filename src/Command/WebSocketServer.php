@@ -21,6 +21,7 @@ use ObjectivePHP\Package\WebSocketServer\Config\WebSocketServerConfig;
 use ObjectivePHP\Package\WebSocketServer\Exception\InvalidListenerException;
 use ObjectivePHP\Package\WebSocketServer\Exception\MalformedMessageException;
 use ObjectivePHP\Package\WebSocketServer\Exception\WebSocketServerException;
+use ObjectivePHP\Package\WebSocketServer\WsServerWrapper;
 use ObjectivePHP\Primitives\String\Camel;
 use Psr\Log\LoggerInterface;
 
@@ -169,6 +170,7 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
 
         $serverBinding = $this->getConfig()->getProtocol() . '://' . $this->getConfig()->getBindingAddress() . ':' . $this->getConfig()->getPort();
         $server = new Server(new \Hoa\Socket\Server($serverBinding));
+        $wsServer = new WsServerWrapper($server);
 
         // add server itself as callback handler
         $this->callbackHandlers[] = $this;
@@ -197,7 +199,7 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
         }
 
 
-        $mainHandler = function (Bucket $bucket) use($server) {
+        $mainHandler = function (Bucket $bucket) use($wsServer) {
 
             try {
 
@@ -205,14 +207,14 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
                 $data = $bucket->getData();
                 $rpc = json_decode($data['message'], true);
 
-                if (!is_array($rpc) || !isset($rpc['event']) || !isset($rpc['params'])) {
+                if (!is_array($rpc) || !isset($rpc['event']) || !isset($rpc['data'])) {
                     throw new MalformedMessageException('Incoming message does not comply to expected format.');
                 }
 
                 $event = $rpc['event'];
-                $params = $rpc['params'];
+                $data = $rpc['data'];
 
-                $this->log('event "' . $event . '" with params ' . json_encode($params));
+                $this->log('event "' . $event . '" with data ' . json_encode($data));
 
                 // trigger handlers
                 $method = 'on' . Camel::case($event, Camel::UPPER, ['.', '_', '-']);
@@ -220,7 +222,7 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
                 foreach($this->callbackHandlers as $handler)
                 {
                     if(method_exists($handler, $method)) {
-                        $handler->$method($params, $bucket, $server);
+                        $handler->$method($data, $wsServer);
                         $this->log('ran ' . get_class($handler) . '->'  . $method . '()');
                     }
                 }
@@ -278,7 +280,6 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
         }
 
         $this->log($message);
-
     }
 
     public function onOpen()
