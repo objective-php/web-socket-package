@@ -1,6 +1,6 @@
 <?php
 
-namespace ObjectivePHP\Package\WebSocket;
+namespace ObjectivePHP\Package\WebSocketServer;
 
 use Hoa\Websocket\Server as HoaServer;
 
@@ -8,7 +8,7 @@ use Hoa\Websocket\Server as HoaServer;
  * Class Server
  * @package ObjectivePHP\Package\WebSocket
  */
-class WsServer implements ServerWrapper
+class WsServerWrapper implements ServerWrapperInterface
 {
     /**
      * @var
@@ -67,7 +67,7 @@ class WsServer implements ServerWrapper
     public function broadcastOthers(string $event, array $data, ...$filters)
     {
         if ($this->broadcastFiltering($filters)) {
-            $this->server->broadcast(json_encode(['event' => $event, 'message' => $data]));
+            $this->server->broadcast(json_encode(['event' => $event, 'data' => $data]));
             return true;
         }
         return false;
@@ -80,7 +80,7 @@ class WsServer implements ServerWrapper
      */
     public function reply(string $event, array $data)
     {
-        $this->server->send(json_encode(['event' => $event, 'message' => $data]));
+        $this->server->send(json_encode(['event' => $event, 'data' => $data]));
         return true;
     }
 
@@ -93,7 +93,7 @@ class WsServer implements ServerWrapper
         $bool = true;
         $filters = $filters[0];
         foreach ($filters as $filter) {
-            $bool = $bool && $filter->call($this);
+            $bool = $bool && $filter($this);
         }
 
         return $bool;
