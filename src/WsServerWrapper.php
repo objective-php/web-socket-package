@@ -2,7 +2,11 @@
 
 namespace ObjectivePHP\Package\WebSocketServer;
 
+use Hoa\Websocket\Node;
 use Hoa\Websocket\Server as HoaServer;
+use ObjectivePHP\Package\WebSocketServer\Exception\MalformedMessageException;
+use ObjectivePHP\Package\WebSocketServer\Identification\WebSocketIdentificationAdapterInterface;
+use ObjectivePHP\Package\WebSocketServer\Node\Client;
 
 /**
  * Class Server
@@ -11,9 +15,19 @@ use Hoa\Websocket\Server as HoaServer;
 class WsServerWrapper implements ServerWrapperInterface
 {
     /**
-     * @var
+     * @var HoaServer
      */
     protected $server;
+
+    /**
+     * @var Client[]
+     */
+    protected $clients = [];
+
+    /**
+     * @var WebSocketIdentificationAdapterInterface
+     */
+    protected $identificationAdapter;
 
     /**
      * Server constructor.
@@ -98,4 +112,134 @@ class WsServerWrapper implements ServerWrapperInterface
 
         return $bool;
     }
+
+    public function onOpen() {
+        /** @var Node $currentNode */
+        $currentNode = $this->getServer()->getConnection()->getCurrentNode();
+
+        // store reference to new node
+        $this->clients[$currentNode->getId()] = (new Client())->setIdentifier($currentNode->getId())->addNode($currentNode);
+    }
+
+    public function onIdentify(array $data)
+    {
+
+        $identifier = $data['identifier'] ?? null;
+        $context = $data['context'] ?? [];
+
+        if(is_null($identifier))
+        {
+            throw new MalformedMessageException('"identify" event callback expects an "identifier" key in data array.');
+        }
+
+        /** @var Node $currentNode */
+        $currentNode = $this->getServer()->getConnection()->getCurrentNode();
+
+        if($this->hasIdentificationAdapter())
+        {
+            if(!$this->getIdentificationAdapter()->identify($identifier, $context))
+            {
+                // TODO send an error to client
+                return false;
+            }
+        }
+
+        if(!$this->hasClient($identifier)) {
+            echo 'client ' . $identifier . ' was not found' . PHP_EOL;
+            $this->clients[$identifier] = $this->clients[$currentNode->getId()]->setIdentifier($identifier);
+        } else {
+            $this->clients[$currentNode->getId()] = $this->getClient($identifier)->addNode($currentNode);
+        }
+
+        $this->reply('identified', ['identity' => $identifier]);
+
+        return true;
+
+    }
+
+    public function onClose()
+    {
+
+        $currentNode = $this->getServer()->getConnection()->getCurrentNode();
+        $this->getCurrentClient()->removeNode($currentNode);
+        if(!count($this->getCurrentClient()->getNodes()))
+        {
+            unset($this->clients[$this->getCurrentClient()->getIdentifier()]);
+        }
+        unset($this->clients[$currentNode->getId()]);
+
+    }
+
+
+    /**
+     * @return array
+     */
+    public function getClients(): array
+    {
+        return $this->clients;
+    }
+
+    /**
+     * @param array $clients
+     */
+    public function setClients(array $clients)
+    {
+        $this->clients = $clients;
+    }
+
+    public function hasClient($identifier) : bool
+    {
+        return isset($this->clients[$identifier]);
+    }
+
+    public function getClient($identifier) : Client
+    {
+        return $this->clients[$identifier];
+    }
+
+    public function getCurrentClient() : Client
+    {
+        return $this->clients[$this->getServer()->getConnection()->getCurrentNode()->getId()];
+    }
+
+    /**
+     * @return WebSocketIdentificationAdapterInterface
+     */
+    public function getIdentificationAdapter(): WebSocketIdentificationAdapterInterface
+    {
+        return $this->identificationAdapter;
+    }
+
+    /**
+     * @param WebSocketIdentificationAdapterInterface $identificationAdapter
+     */
+    public function setIdentificationAdapter(WebSocketIdentificationAdapterInterface $identificationAdapter)
+    {
+        $this->identificationAdapter = $identificationAdapter;
+    }
+
+    /**
+     * @return WebSocketIdentificationAdapterInterface
+     */
+    public function hasIdentificationAdapter(): bool
+    {
+        return !is_null($this->identificationAdapter);
+    }
+
+    /**
+     * @param $recipient
+     * @param $event
+     * @param $data
+     */
+    public function sendTo($recipient, $event, $data)
+    {
+        $client = $this->getClient($recipient);
+
+        /** @var Node $node */
+        foreach($client->getNodes() as $node)
+        {
+            $this->getServer()->send(json_encode(['event' => $event, 'data' => $data]), $node);
+        }
+    }
+
 }

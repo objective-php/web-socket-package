@@ -18,6 +18,7 @@ use ObjectivePHP\Cli\Action\Parameter\Argument;
 use ObjectivePHP\Cli\Action\Parameter\Param;
 use ObjectivePHP\Cli\Action\Parameter\Toggle;
 use ObjectivePHP\Package\WebSocketServer\Config\WebSocketServerConfig;
+use ObjectivePHP\Package\WebSocketServer\Exception\InvalidEventException;
 use ObjectivePHP\Package\WebSocketServer\Exception\InvalidListenerException;
 use ObjectivePHP\Package\WebSocketServer\Exception\MalformedMessageException;
 use ObjectivePHP\Package\WebSocketServer\Exception\WebSocketServerException;
@@ -169,8 +170,14 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
     {
 
         $serverBinding = $this->getConfig()->getProtocol() . '://' . $this->getConfig()->getBindingAddress() . ':' . $this->getConfig()->getPort();
+
+        $this->log('Initializing server on "' . $serverBinding . '"');
         $server = new Server(new \Hoa\Socket\Server($serverBinding));
+
         $wsServer = new WsServerWrapper($server);
+
+        // register wrapper as listeners for it to catch open and close events
+        $this->callbackHandlers[] = $wsServer;
 
         // add server itself as callback handler
         $this->callbackHandlers[] = $this;
@@ -199,20 +206,27 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
         }
 
 
-        $mainHandler = function (Bucket $bucket) use($wsServer) {
+        $mainHandler = function (Bucket $bucket, $eventId) use($wsServer) {
 
             try {
 
-
                 $data = $bucket->getData();
-                $rpc = json_decode($data['message'], true);
 
-                if (!is_array($rpc) || !isset($rpc['event']) || !isset($rpc['data'])) {
-                    throw new MalformedMessageException('Incoming message does not comply to expected format.');
+                if($eventId == 'message') {
+                    $rpc = json_decode($data['message'], true);
+                    if (!is_array($rpc) || !isset($rpc['event']) || !isset($rpc['data'])) {
+                        throw new MalformedMessageException('Incoming message does not comply to expected format.');
+                    }
+
+                    if(in_array($rpc['event'], ['open', 'close', 'error', 'ping', 'binary-message', 'message'])) {
+                        throw new InvalidEventException('Requested event is reserved by the server. Do not use the following as event id: \'open\', \'close\', \'error\', \'ping\', \'binary-message\', \'message\'');
+                    }
+
+                    $event = $rpc['event'];
+                    $data = $rpc['data'];
+                } else {
+                    $event = $eventId;
                 }
-
-                $event = $rpc['event'];
-                $data = $rpc['data'];
 
                 $this->log('event "' . $event . '" with data ' . json_encode($data));
 
@@ -236,11 +250,9 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
             return;
         };
 
-        $server->on('message', $mainHandler);
-        $server->on('open', [$this, 'onOpen']);
-        $server->on('close',[$this, 'onClose']);
-
-
+        $server->on('message', function($bucket) use($mainHandler) { $mainHandler($bucket, 'message'); });
+        $server->on('open', function($bucket) use($mainHandler) { $mainHandler($bucket, 'open');});
+        $server->on('close', function($bucket) use($mainHandler) { $mainHandler($bucket, 'close');});
 
         try {
             $server->run();
@@ -282,7 +294,7 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
         $this->log($message);
     }
 
-    public function onOpen()
+    public function onOpen(...$args)
     {
         $this->log('new incoming connection');
     }
