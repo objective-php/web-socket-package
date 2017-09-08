@@ -121,6 +121,18 @@ class WsServerWrapper implements ServerWrapperInterface
         $this->clients[$currentNode->getId()] = (new Client())->setIdentifier($currentNode->getId())->addNode($currentNode);
     }
 
+    public function onCurrent()
+    {
+        $currentNode = $this->getServer()->getConnection()->getCurrentNode();
+        $client = $this->getCurrentClient();
+        $client->setActiveNode($currentNode);
+    }
+
+    /**
+     * @param array $data
+     * @return bool
+     * @throws MalformedMessageException
+     */
     public function onIdentify(array $data)
     {
 
@@ -187,16 +199,27 @@ class WsServerWrapper implements ServerWrapperInterface
         $this->clients = $clients;
     }
 
+    /**
+     * @param $identifier
+     * @return bool
+     */
     public function hasClient($identifier) : bool
     {
         return isset($this->clients[$identifier]);
     }
 
+    /**
+     * @param $identifier
+     * @return Client
+     */
     public function getClient($identifier) : Client
     {
         return $this->clients[$identifier];
     }
 
+    /**
+     * @return Client
+     */
     public function getCurrentClient() : Client
     {
         return $this->clients[$this->getServer()->getConnection()->getCurrentNode()->getId()];
@@ -219,7 +242,7 @@ class WsServerWrapper implements ServerWrapperInterface
     }
 
     /**
-     * @return WebSocketIdentificationAdapterInterface
+     * @return bool
      */
     public function hasIdentificationAdapter(): bool
     {
@@ -230,22 +253,26 @@ class WsServerWrapper implements ServerWrapperInterface
      * @param $recipient
      * @param $event
      * @param $data
+     * @param bool $activeOnly
+     * @return bool
      */
-    public function sendTo($recipient, $event, $data, $onlyCurrent = false)
+    public function sendTo($recipient, $event, $data, $activeOnly = false)
     {
         if (!$this->hasClient($recipient)) {
             return false;
         }
         $client = $this->getClient($recipient);
-
-        $currentId = $client->getCurrent();
+        $activeNode = $client->getActiveNode();
 
         /** @var Node $node */
         foreach($client->getNodes() as $node)
         {
-            if (!$onlyCurrent || ($onlyCurrent && $node->getId() === $currentId)) {
-                $this->getServer()->send(json_encode(['event' => $event, 'data' => $data]), $node);
+            if ($activeOnly) {
+                if ($activeNode !== $node->getId()) {
+                    continue;
+                }
             }
+            $this->getServer()->send(json_encode(['event' => $event, 'data' => $data]), $node);
         }
     }
 
