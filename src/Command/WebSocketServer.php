@@ -176,6 +176,11 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
 
         $wsServer = new WsServerWrapper($server);
 
+        $adapter = $this->getConfig()->getIdentificationAdapter();
+        if (class_exists($adapter)) {
+            $wsServer->setIdentificationAdapter(new $adapter());
+        }
+
         // register wrapper as listeners for it to catch open and close events
         $this->callbackHandlers[] = $wsServer;
 
