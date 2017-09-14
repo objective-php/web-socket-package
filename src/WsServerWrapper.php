@@ -231,14 +231,21 @@ class WsServerWrapper implements ServerWrapperInterface
      * @param $event
      * @param $data
      */
-    public function sendTo($recipient, $event, $data)
+    public function sendTo($recipient, $event, $data, $onlyCurrent = false)
     {
+        if (!$this->hasClient($recipient)) {
+            return false;
+        }
         $client = $this->getClient($recipient);
+
+        $currentId = $client->getCurrent();
 
         /** @var Node $node */
         foreach($client->getNodes() as $node)
         {
-            $this->getServer()->send(json_encode(['event' => $event, 'data' => $data]), $node);
+            if (!$onlyCurrent || ($onlyCurrent && $node->getId() === $currentId)) {
+                $this->getServer()->send(json_encode(['event' => $event, 'data' => $data]), $node);
+            }
         }
     }
 
