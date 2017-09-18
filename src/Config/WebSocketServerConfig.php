@@ -3,11 +3,14 @@
 namespace ObjectivePHP\Package\WebSocketServer\Config;
 
 use ObjectivePHP\Config\Exception;
-use ObjectivePHP\Config\SingleDirective;
 use ObjectivePHP\Config\StackedDirective;
 use ObjectivePHP\Package\WebSocketServer\Command\WebSocketServer;
-use ObjectivePHP\Package\WebSocketServer\Command\WebSocketServerCommandInterface;
 
+/**
+ * Class WebSocketServerConfig
+ *
+ * @package ObjectivePHP\Package\WebSocketServer\Config
+ */
 class WebSocketServerConfig extends StackedDirective
 {
 
@@ -21,15 +24,29 @@ class WebSocketServerConfig extends StackedDirective
 
     protected $listeners = [];
 
+    protected $identificationAdapter;
+
     protected $logFile;
 
-    public function __construct($listeners = [], $port = 8889, $bindingAddress = '127.0.0.1', $protocol = 'ws', $action = WebSocketServer::class, $logFile = null)
+    /**
+     * WebSocketServerConfig constructor.
+     *
+     * @param array $listeners
+     * @param int $port
+     * @param string $bindingAddress
+     * @param string $protocol
+     * @param string $action
+     * @param null $identificationAdapter
+     * @param null $logFile
+     */
+    public function __construct($listeners = [], $port = 8889, $bindingAddress = '127.0.0.1', $protocol = 'ws', $action = WebSocketServer::class, $identificationAdapter = null, $logFile = null)
     {
         $this->setAction($action);
         $this->setPort($port);
         $this->setBindingAddress($bindingAddress);
         $this->setProtocol($protocol);
         $this->setListeners($listeners);
+        $this->setIdentificationAdapter($identificationAdapter);
     }
 
 
@@ -143,4 +160,26 @@ class WebSocketServerConfig extends StackedDirective
         $this->logFile = $logFile;
     }
 
+    /**
+     * Get IdentificationAdapter
+     *
+     * @return mixed
+     */
+    public function getIdentificationAdapter()
+    {
+        return $this->identificationAdapter;
+    }
+
+    /**
+     * Set IdentificationAdapter
+     *
+     * @param mixed $identificationAdapter
+     *
+     * @return $this
+     */
+    public function setIdentificationAdapter($identificationAdapter)
+    {
+        $this->identificationAdapter = $identificationAdapter;
+        return $this;
+    }
 }
