@@ -13,6 +13,8 @@ use ObjectivePHP\Package\WebSocketServer\Command\WebSocketServer;
  */
 class WebSocketServerConfig extends StackedDirective
 {
+    
+    protected $command = 'ws-server';
 
     protected $bindingAddress;
 
@@ -182,4 +184,25 @@ class WebSocketServerConfig extends StackedDirective
         $this->identificationAdapter = $identificationAdapter;
         return $this;
     }
+    
+    /**
+     * @return mixed
+     */
+    public function getCommand()
+    {
+        return $this->command;
+    }
+    
+    /**
+     * @param mixed $command
+     *
+     * @return $this
+     */
+    public function setCommand($command)
+    {
+        $this->command = $command;
+        
+        return $this;
+    }
+    
 }

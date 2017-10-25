@@ -49,20 +49,27 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
     public function __construct(WebSocketServerConfig $config = null)
     {
 
+        if($config) {
+            $this->setConfig($config);
+            $this->listeners += $config->getListeners();
+            $this->setCommand($config->getCommand());
+            $defaultPort = $config->getPort();
+            $defaultBindingAddress = $config->getBindingAddress();
+        } else {
+            $defaultPort = '8889';
+            $defaultBindingAddress = '127.0.0.1';
+        }
 
-        $this->setCommand('ws-server');
         $this->allowUnexpectedParameters();
         $this->setDescription('Start a web socket server');
         $this->expects(new Toggle(['d' => 'debug'], 'Log debug informations'));
         $this->expects(new Toggle(['f' => 'force'], 'Force starting the server, ignoring existing PID file'));
         $this->expects((new Param('pid-file', 'file where to store daemon PID')));
+        $this->expects(new Param(['p' => 'port'], 'Override default port (' . $defaultPort . ')'));
+        $this->expects(new Param(['b' => 'binding-address'], 'Override default binding address (' . $defaultBindingAddress . ')'));
         $this->expects(new Argument('operation',
             'Server operation (start|stop|restart|run*)'));
 
-        if($config) {
-            $this->setConfig($config);
-            $this->listeners += $config->getListeners();
-        }
     }
 
     public function registerListeners(...$listeners)
@@ -168,8 +175,11 @@ class WebSocketServer extends AbstractCliAction implements WebSocketServerComman
 
     protected function startServer()
     {
+        
+        $port = $this->getParam('p', $this->getConfig()->getPort());
+        $bindingAddress = $this->getParam('b', $this->getConfig()->getBindingAddress());
 
-        $serverBinding = $this->getConfig()->getProtocol() . '://' . $this->getConfig()->getBindingAddress() . ':' . $this->getConfig()->getPort();
+        $serverBinding = $this->getConfig()->getProtocol() . '://' . $bindingAddress . ':' . $port;
 
         $this->log('Initializing server on "' . $serverBinding . '"');
         $server = new Server(new \Hoa\Socket\Server($serverBinding));
