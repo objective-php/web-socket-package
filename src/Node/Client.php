@@ -26,7 +26,7 @@ class Client implements \JsonSerializable
     protected $properties = [];
 
     /**
-     * @return Node
+     * @return string
      */
     public function getIdentifier(): string
     {
@@ -35,6 +35,7 @@ class Client implements \JsonSerializable
 
     /**
      * @param string $identifier
+     * @return $this
      */
     public function setIdentifier(string $identifier)
     {
@@ -71,10 +72,46 @@ class Client implements \JsonSerializable
         return $this;
     }
 
+    /**
+     * @param $property
+     * @param $value
+     * @return $this
+     */
     public function addProperty($property, $value)
     {
         $this->properties[$property] = $value;
+
+        return $this;
     }
+
+    /**
+     * @param $property
+     * @return mixed|null
+     */
+    public function getProperty($property)
+    {
+        return isset($this->properties[$property]) ? $this->properties[$property] : null;
+    }
+
+    /**
+     * @param Node $node
+     * @return $this
+     */
+    public function setActiveNode(Node $node)
+    {
+        $this->addProperty('activeNode', $node->getId());
+
+        return $this;
+    }
+
+    /**
+     * @return mixed|null
+     */
+    public function getActiveNode()
+    {
+        return $this->getProperty('activeNode');
+    }
+
 
     /**
      * Specify data which should be serialized to JSON
@@ -94,6 +131,10 @@ class Client implements \JsonSerializable
         return $data;
     }
 
+    /**
+     * @param Node $nodeToRemove
+     * @return $this
+     */
     public function removeNode(Node $nodeToRemove)
     {
         foreach($this->nodes as $id => $node)
@@ -107,6 +148,5 @@ class Client implements \JsonSerializable
 
         return $this;
     }
-
 
 }
