@@ -158,9 +158,9 @@ class WsServerWrapper implements ServerWrapperInterface
 
         if(!$this->hasClient($identifier)) {
             echo 'client ' . $identifier . ' was not found' . PHP_EOL;
-            $this->clients[$identifier] = $this->clients[$currentNode->getId()]->setIdentifier($identifier);
+            $this->clients[$this->normalize($identifier)] = $this->clients[$this->normalize($currentNode->getId())]->setIdentifier($identifier);
         } else {
-            $this->clients[$currentNode->getId()] = $this->getClient($identifier)->addNode($currentNode);
+            $this->clients[$this->normalize($currentNode->getId())] = $this->getClient($identifier)->addNode($currentNode);
         }
 
         $this->reply('identified', ['identity' => $identifier]);
@@ -176,7 +176,7 @@ class WsServerWrapper implements ServerWrapperInterface
         $this->getCurrentClient()->removeNode($currentNode);
         if(!count($this->getCurrentClient()->getNodes()))
         {
-            unset($this->clients[$this->getCurrentClient()->getIdentifier()]);
+            unset($this->clients[$this->normalize($this->getCurrentClient()->getIdentifier())]);
         }
         unset($this->clients[$currentNode->getId()]);
 
@@ -205,7 +205,7 @@ class WsServerWrapper implements ServerWrapperInterface
      */
     public function hasClient($identifier) : bool
     {
-        return isset($this->clients[$identifier]);
+        return isset($this->clients[$this->normalize($identifier)]);
     }
 
     /**
@@ -214,7 +214,7 @@ class WsServerWrapper implements ServerWrapperInterface
      */
     public function getClient($identifier) : Client
     {
-        return $this->clients[$identifier];
+        return $this->clients[$this->normalize($identifier)];
     }
 
     /**
@@ -274,6 +274,10 @@ class WsServerWrapper implements ServerWrapperInterface
             }
             $this->getServer()->send(json_encode(['event' => $event, 'data' => $data]), $node);
         }
+    }
+
+    protected function normalize($str) {
+        return strtolower($str);
     }
 
 }
