@@ -277,7 +277,7 @@ class WsServerWrapper implements ServerWrapperInterface
     }
 
     protected function normalize($str) {
-        return strtolower($str);
+        return mb_strtolower($str, 'UTF-8');
     }
 
 }
